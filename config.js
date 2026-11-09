@@ -128,7 +128,7 @@ const SITES = [
   { code: 'vaam', type: 'met', name: 'Lake Vanda', prep: 'at', photo: 'img/station-photos/vaam.jpg', photoFocus: '50% 80%',
     lat: -77.52567, lon: 161.6913,
     map: { src: 'img/maps/vaam.jpg', size: [2560, 1333], dot: [50.0, 50.0], credit: 'Contains modified Copernicus Sentinel data 2026' } },
-  { code: 'viam', type: 'met', name: 'Lake Vida', prep: 'at', photo: null,
+  { code: 'viam', type: 'met', name: 'Lake Vida', prep: 'at', photo: 'img/station-photos/viam.jpg',
     lat: -77.37735, lon: 161.7991,
     map: { src: 'img/maps/viam.jpg', size: [2560, 1333], dot: [50.0, 50.0], credit: 'Contains modified Copernicus Sentinel data 2026' } },
 ];

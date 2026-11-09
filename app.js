@@ -689,8 +689,9 @@ function fitSatMaps() {
   });
 }
 
-// Marker and name tag sized to the view (x, y, w, h). The tag sits beside the
-// dot (right, else left), or centred just below it if the name is too long.
+// Marker and name tag sized to the view (x, y, w, h). The tag sits up and to
+// the left (north-west) of the dot, its corner just clear of the halo, and is
+// slid back into view if it would run off the left or top edge.
 function placeMarker(svg, x, y, w, h, dx, dy) {
   const r = h * 0.032;
   const halo = svg.querySelector('.sat-halo'), dot = svg.querySelector('.sat-dot');
@@ -700,18 +701,13 @@ function placeMarker(svg, x, y, w, h, dx, dy) {
   dot.setAttribute('stroke-width', (r * 0.42).toFixed(1));
 
   const label = svg.querySelector('.sat-label'), bg = svg.querySelector('.sat-tag-bg');
-  const fs = h * 0.075, padX = fs * 0.55, padY = fs * 0.32, gap = r * 2.4;
+  const fs = h * 0.075, padX = fs * 0.55, padY = fs * 0.32, gap = r * 1.4;
   label.setAttribute('font-size', fs.toFixed(1));
   label.setAttribute('x', '0');
   const tw = label.getBBox().width, tagW = tw + 2 * padX, tagH = fs + 2 * padY;
-  const left = x + w * 0.02, rightEdge = x + w * 0.98;
-  let tx, ty = dy;                                     // tx = text start, ty = text centre line
-  if (dx + gap + tagW <= rightEdge) tx = dx + gap + padX;              // beside, to the right
-  else if (dx - gap - tagW >= left) tx = dx - gap - padX - tw;         // beside, to the left
-  else {                                                                 // too long: centred below
-    tx = Math.min(Math.max(dx - tw / 2, left + padX), rightEdge - padX - tw);
-    ty = dy + r * 2.2 + tagH / 2;
-  }
+  const tagX = Math.max(dx - gap - tagW, x + w * 0.02);   // tag's left edge
+  const tagY = Math.max(dy - gap - tagH, y + h * 0.02);   // tag's top edge
+  const tx = tagX + padX, ty = tagY + tagH / 2;            // text start, text centre line
   label.setAttribute('x', tx.toFixed(1));
   label.setAttribute('y', ty.toFixed(1));
   bg.setAttribute('x', (tx - padX).toFixed(1));
