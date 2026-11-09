@@ -45,7 +45,7 @@ const CONFIG = {
   // Set to null to use the USGS relief maps everywhere.
   satelliteTiles: {
     url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-    spanKm: 20,
+    spanKm: 32,
     maxZoom: 15,
     credit: 'Imagery © Google',
   },
@@ -56,9 +56,9 @@ const CONFIG = {
     learnMore: { url: 'https://mcm.lternet.edu/', qr: 'img/qr-learn-more.svg' },
     logos: [
       { src: 'img/logos/mcm-lter-white.png', alt: 'McMurdo Dry Valleys LTER' },
-      { src: 'img/logos/nsf.png', alt: 'U.S. National Science Foundation' },
       { src: 'img/logos/instaar.png', alt: 'INSTAAR, University of Colorado Boulder' },
-      { src: 'img/logos/lter-network.png', alt: 'NSF LTER Network', wide: true },
+      { src: 'img/logos/nsf.png', alt: 'U.S. National Science Foundation' },
+      { src: 'img/logos/lter-network-square.png', alt: 'LTER Network' },
     ],
   },
 };

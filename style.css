@@ -262,8 +262,9 @@ body.pinned #progress { visibility: hidden; }   /* ?site=… : one station, no c
   gap: 0.8rem 2rem;
 }
 
-.disp-credit { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem 2rem; }
-.disp-credit p { max-width: 34rem; }
+.disp-credit { display: flex; align-items: center; }
+.disp-credit p, .learn-more span { max-width: 36rem; }
+.learn-more strong { font-weight: 600; }
 
 .disp-credit p {
   font-size: 1.15rem;
@@ -274,14 +275,15 @@ body.pinned #progress { visibility: hidden; }   /* ?site=… : one station, no c
 .learn-more {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: 1rem;
   color: var(--on-bg);
   font-size: 1.15rem;
-  line-height: 1.2;
+  line-height: 1.35;
   text-decoration: none;
 }
 
 .learn-more img {
+  flex-shrink: 0;
   width: 5.2rem;
   height: 5.2rem;
   padding: 0.25rem;
@@ -304,8 +306,6 @@ body.pinned #progress { visibility: hidden; }   /* ?site=… : one station, no c
    footer never takes a second row from the tiles. */
 @media (min-width: 900px) and (orientation: landscape) {
   #disp-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
-  .disp-credit { flex-wrap: nowrap; }
-  .learn-more { flex-shrink: 0; }
   .disp-logos { flex-wrap: nowrap; }
 }
 

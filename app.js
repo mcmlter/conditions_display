@@ -819,9 +819,10 @@ function renderFooter() {
   const lm = f.learnMore;
   el.innerHTML = `
     <div class="disp-credit">
-      ${f.credit ? `<p>${escapeHtml(f.credit)}</p>` : ''}
-      ${lm ? `<a class="learn-more" href="${escapeHtml(lm.url)}"><span>Learn<br />more:</span>
-        <img src="${escapeHtml(lm.qr)}" alt="QR code linking to ${escapeHtml(lm.url)}" /></a>` : ''}
+      ${lm ? `<a class="learn-more" href="${escapeHtml(lm.url)}">
+        <img src="${escapeHtml(lm.qr)}" alt="QR code linking to ${escapeHtml(lm.url)}" />
+        <span>${f.credit ? `${escapeHtml(f.credit)}.<br />` : ''}<strong>Learn more:</strong> scan the code</span></a>`
+        : (f.credit ? `<p>${escapeHtml(f.credit)}</p>` : '')}
     </div>
     <div class="disp-logos">
       ${(f.logos || []).map(l => `<img src="${escapeHtml(l.src)}" alt="${escapeHtml(l.alt)}"${l.wide ? ' class="logo-wide"' : ''} />`).join('')}
