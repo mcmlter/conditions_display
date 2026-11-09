@@ -262,7 +262,8 @@ body.pinned #progress { visibility: hidden; }   /* ?site=… : one station, no c
   gap: 0.8rem 2rem;
 }
 
-.disp-credit { display: flex; flex-direction: column; gap: 0.6rem; max-width: 46rem; }
+.disp-credit { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem 2rem; }
+.disp-credit p { max-width: 34rem; }
 
 .disp-credit p {
   font-size: 1.15rem;
@@ -299,10 +300,12 @@ body.pinned #progress { visibility: hidden; }   /* ?site=… : one station, no c
 .disp-logos img { height: 5rem; width: auto; display: block; }
 .disp-logos img.logo-wide { height: 4rem; }
 
-/* Landscape screens: credit on the left, logos on one row at the right,
-   so the footer never takes a second row from the tiles. */
+/* Landscape screens: credit, QR code and logos all on one row, so the
+   footer never takes a second row from the tiles. */
 @media (min-width: 900px) and (orientation: landscape) {
-  #disp-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  #disp-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .disp-credit { flex-wrap: nowrap; }
+  .learn-more { flex-shrink: 0; }
   .disp-logos { flex-wrap: nowrap; }
 }
 

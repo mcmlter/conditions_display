@@ -46,6 +46,15 @@ originals can be moved out of the repo to keep it small.
 
 ## Station maps
 
+By default the map panel shows satellite map tiles (`satelliteTiles` in config.js),
+centred on each station's `lat` / `lon` and about `spanKm` across, with the zoom
+chosen to suit the screen. This uses Google's tile address directly, which isn't an
+official Google API and could be throttled or blocked; if the tile under a station
+fails to load, that station falls back to its USGS map below. Set
+`satelliteTiles: null` to use the USGS maps everywhere.
+
+### USGS relief maps (fallback)
+
 Each station's `map` is an image plus where the station is on it:
 
     map: { src: 'img/maps/boym-relief.jpg', size: [680, 354], dot: [49.9, 50.1], credit: 'Map: USGS 1:250,000 shaded relief' }

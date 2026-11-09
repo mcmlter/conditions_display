@@ -575,34 +575,108 @@ function fitPhotos() {
   });
 }
 
-// The map is one SVG (image + red dot + italic name) so they stay together.
+// The map is one SVG (image + dot + name tag) so they stay together.
 // fitSatMaps() then picks which part of the image to show for the panel's
 // shape: as much as fits, keeping the dot and its label in view.
-function mapPanelHtml(site) {
-  const m = site.map;
-  if (!m) return '<figure class="disp-panel map-panel"></figure>';
-  const [W, H] = m.size;
-  const x = m.dot[0] / 100 * W, y = m.dot[1] / 100 * H;
+// With CONFIG.satelliteTiles the image is instead satellite map tiles centred
+// on the station, stitched together in the SVG (see fitTileMap).
+const tilesFailed = new Set();      // stations whose satellite tiles didn't load
+
+function useTiles(site) {
+  const t = CONFIG.satelliteTiles;
+  return !!(t && t.url && site.lat != null && site.lon != null && !tilesFailed.has(site.code));
+}
+
+function markerSvg(site, x, y) {
   return `
-    <figure class="disp-panel map-panel">
-      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="img"
-           aria-label="Map showing the ${escapeHtml(site.name)} station" data-w="${W}" data-h="${H}" data-x="${x}" data-y="${y}">
-        <image href="${escapeHtml(m.src)}" width="${W}" height="${H}" />
         <circle class="sat-halo" cx="${x}" cy="${y}" r="16" />
         <circle class="sat-dot" cx="${x}" cy="${y}" r="10" />
         <g class="sat-tag">
           <rect class="sat-tag-bg" rx="6" />
           <text class="sat-label" x="${x}" y="${y}" dominant-baseline="central">${escapeHtml(site.name)}</text>
-        </g>
+        </g>`;
+}
+
+function mapPanelHtml(site) {
+  const label = `aria-label="Map showing the ${escapeHtml(site.name)} station"`;
+  if (useTiles(site)) {
+    // Tiles and viewBox are filled in by fitTileMap once the panel's size is known.
+    const credit = CONFIG.satelliteTiles.credit;
+    return `
+    <figure class="disp-panel map-panel" data-code="${site.code}">
+      <svg class="tile-map" preserveAspectRatio="xMidYMid slice" role="img" ${label}>
+        <g class="tiles-layer"></g>${markerSvg(site, 0, 0)}
+      </svg>
+      ${credit ? `<figcaption class="map-credit">${escapeHtml(credit)}</figcaption>` : ''}
+    </figure>`;
+  }
+  const m = site.map;
+  if (!m) return `<figure class="disp-panel map-panel" data-code="${site.code}"></figure>`;
+  const [W, H] = m.size;
+  const x = m.dot[0] / 100 * W, y = m.dot[1] / 100 * H;
+  return `
+    <figure class="disp-panel map-panel" data-code="${site.code}">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="img" ${label}
+           data-w="${W}" data-h="${H}" data-x="${x}" data-y="${y}">
+        <image href="${escapeHtml(m.src)}" width="${W}" height="${H}" />${markerSvg(site, x, y)}
       </svg>
       ${m.credit ? `<figcaption class="map-credit">${escapeHtml(m.credit)}</figcaption>` : ''}
     </figure>`;
 }
 
+// Web Mercator: the world is 256 * 2^z px square at zoom z.
+function lonLatToPx(lon, lat, z) {
+  const n = 256 * 2 ** z, s = Math.sin(lat * Math.PI / 180);
+  return [(lon + 180) / 360 * n, (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n];
+}
+
+function fitTileMap(svg, bw, bh) {
+  const t = CONFIG.satelliteTiles;
+  const panel = svg.closest('.map-panel');
+  const site = SITES.find(s => s.code === panel.dataset.code);
+  // Ground metres per tile pixel at zoom 0 at this latitude; pick the zoom whose
+  // tile pixels are about the size of the screen's pixels across spanKm.
+  const m0 = 156543.03 * Math.cos(site.lat * Math.PI / 180);
+  const spanM = (t.spanKm || 20) * 1000;
+  const devW = bw * (window.devicePixelRatio || 1);
+  const z = Math.max(1, Math.min(t.maxZoom || 15, Math.round(Math.log2(m0 * devW / spanM))));
+  const [cx, cy] = lonLatToPx(site.lon, site.lat, z);
+  const w = spanM / (m0 / 2 ** z), h = w * bh / bw;
+  const x0 = cx - w / 2, y0 = cy - h / 2;
+  const n = 2 ** z;
+  const tx0 = Math.floor(x0 / 256), tx1 = Math.floor((x0 + w) / 256);
+  const ty0 = Math.max(0, Math.floor(y0 / 256)), ty1 = Math.min(n - 1, Math.floor((y0 + h) / 256));
+  const key = [z, tx0, tx1, ty0, ty1].join(',');
+  const layer = svg.querySelector('.tiles-layer');
+  if (layer.dataset.key !== key) {
+    layer.dataset.key = key;
+    const home = [Math.floor(cx / 256), Math.floor(cy / 256)].join(',');
+    let html = '';
+    for (let ty = ty0; ty <= ty1; ty++) {
+      for (let tx = tx0; tx <= tx1; tx++) {
+        const url = t.url.replace('{x}', ((tx % n) + n) % n).replace('{y}', ty).replace('{z}', z);
+        // +0.5 px overlap hides hairline seams between tiles
+        html += `<image href="${escapeHtml(url)}" x="${tx * 256}" y="${ty * 256}" width="256.5" height="256.5"${`${tx},${ty}` === home ? ' data-home="1"' : ''} />`;
+      }
+    }
+    layer.innerHTML = html;
+    // The tile under the station failed: use the USGS map for this station.
+    layer.querySelector('[data-home]')?.addEventListener('error', () => {
+      tilesFailed.add(site.code);
+      console.warn(`Satellite tiles for ${site.code} didn't load; using the USGS map.`);
+      if (panel.isConnected) { panel.outerHTML = mapPanelHtml(site); fitSatMaps(); }
+    }, { once: true });
+  }
+  svg.setAttribute('viewBox', `${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`);
+  placeMarker(svg, x0, y0, w, h, cx, cy);
+}
+
 function fitSatMaps() {
-  document.querySelectorAll('.map-panel svg[data-w]').forEach(svg => {
+  document.querySelectorAll('.map-panel svg').forEach(svg => {
     const { width: bw, height: bh } = svg.getBoundingClientRect();
     if (!bw || !bh) return;
+    if (svg.classList.contains('tile-map')) { fitTileMap(svg, bw, bh); return; }
+    if (!svg.dataset.w) return;
     const W = +svg.dataset.w, H = +svg.dataset.h, dx = +svg.dataset.x, dy = +svg.dataset.y;
     const a = bw / bh;
     const w = Math.min(W, H * a), h = w / a;              // largest view with the panel's shape
@@ -611,35 +685,40 @@ function fitSatMaps() {
     const x = clamp(clamp((W - w) / 2, dx - 0.88 * w, dx - 0.12 * w), 0, W - w);
     const y = clamp(clamp((H - h) / 2, dy - 0.85 * h, dy - 0.3 * h), 0, H - h);
     svg.setAttribute('viewBox', `${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`);
-    // Marker and name tag sized to the view. The tag sits beside the dot
-    // (right, else left), or centred just below it if the name is too long.
-    const r = h * 0.032;
-    const halo = svg.querySelector('.sat-halo'), dot = svg.querySelector('.sat-dot');
-    halo.setAttribute('r', (r * 1.9).toFixed(1));
-    dot.setAttribute('r', r.toFixed(1));
-    dot.setAttribute('stroke-width', (r * 0.42).toFixed(1));
-
-    const label = svg.querySelector('.sat-label'), bg = svg.querySelector('.sat-tag-bg');
-    const fs = h * 0.075, padX = fs * 0.55, padY = fs * 0.32, gap = r * 2.4;
-    label.setAttribute('font-size', fs.toFixed(1));
-    label.setAttribute('x', '0');
-    const tw = label.getBBox().width, tagW = tw + 2 * padX, tagH = fs + 2 * padY;
-    const left = x + w * 0.02, rightEdge = x + w * 0.98;
-    let tx, ty = dy;                                     // tx = text start, ty = text centre line
-    if (dx + gap + tagW <= rightEdge) tx = dx + gap + padX;              // beside, to the right
-    else if (dx - gap - tagW >= left) tx = dx - gap - padX - tw;         // beside, to the left
-    else {                                                                 // too long: centred below
-      tx = Math.min(Math.max(dx - tw / 2, left + padX), rightEdge - padX - tw);
-      ty = dy + r * 2.2 + tagH / 2;
-    }
-    label.setAttribute('x', tx.toFixed(1));
-    label.setAttribute('y', ty.toFixed(1));
-    bg.setAttribute('x', (tx - padX).toFixed(1));
-    bg.setAttribute('y', (ty - tagH / 2).toFixed(1));
-    bg.setAttribute('width', tagW.toFixed(1));
-    bg.setAttribute('height', tagH.toFixed(1));
-    bg.setAttribute('rx', (fs * 0.35).toFixed(1));
+    placeMarker(svg, x, y, w, h, dx, dy);
   });
+}
+
+// Marker and name tag sized to the view (x, y, w, h). The tag sits beside the
+// dot (right, else left), or centred just below it if the name is too long.
+function placeMarker(svg, x, y, w, h, dx, dy) {
+  const r = h * 0.032;
+  const halo = svg.querySelector('.sat-halo'), dot = svg.querySelector('.sat-dot');
+  for (const c of [halo, dot]) { c.setAttribute('cx', dx); c.setAttribute('cy', dy); }
+  halo.setAttribute('r', (r * 1.9).toFixed(1));
+  dot.setAttribute('r', r.toFixed(1));
+  dot.setAttribute('stroke-width', (r * 0.42).toFixed(1));
+
+  const label = svg.querySelector('.sat-label'), bg = svg.querySelector('.sat-tag-bg');
+  const fs = h * 0.075, padX = fs * 0.55, padY = fs * 0.32, gap = r * 2.4;
+  label.setAttribute('font-size', fs.toFixed(1));
+  label.setAttribute('x', '0');
+  const tw = label.getBBox().width, tagW = tw + 2 * padX, tagH = fs + 2 * padY;
+  const left = x + w * 0.02, rightEdge = x + w * 0.98;
+  let tx, ty = dy;                                     // tx = text start, ty = text centre line
+  if (dx + gap + tagW <= rightEdge) tx = dx + gap + padX;              // beside, to the right
+  else if (dx - gap - tagW >= left) tx = dx - gap - padX - tw;         // beside, to the left
+  else {                                                                 // too long: centred below
+    tx = Math.min(Math.max(dx - tw / 2, left + padX), rightEdge - padX - tw);
+    ty = dy + r * 2.2 + tagH / 2;
+  }
+  label.setAttribute('x', tx.toFixed(1));
+  label.setAttribute('y', ty.toFixed(1));
+  bg.setAttribute('x', (tx - padX).toFixed(1));
+  bg.setAttribute('y', (ty - tagH / 2).toFixed(1));
+  bg.setAttribute('width', tagW.toFixed(1));
+  bg.setAttribute('height', tagH.toFixed(1));
+  bg.setAttribute('rx', (fs * 0.35).toFixed(1));
 }
 
 // ─── Wind-direction arrows on the wind trend line ──────────────
