@@ -821,7 +821,7 @@ function renderFooter() {
     <div class="disp-credit">
       ${lm ? `<a class="learn-more" href="${escapeHtml(lm.url)}">
         <img src="${escapeHtml(lm.qr)}" alt="QR code linking to ${escapeHtml(lm.url)}" />
-        <span>${f.credit ? `${escapeHtml(f.credit)}.<br />` : ''}<strong>Learn more:</strong> scan the code</span></a>`
+        <span>${f.credit ? `${escapeHtml(f.credit)}. ` : ''}Scan the code to learn more.</span></a>`
         : (f.credit ? `<p>${escapeHtml(f.credit)}</p>` : '')}
     </div>
     <div class="disp-logos">
