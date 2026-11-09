@@ -7,8 +7,9 @@ uses (station maps, the QR code, `climatology/`).
 | Path | What it's for |
 |---|---|
 | `maintenance/README.md` | This file |
-| `maintenance/build_station_maps.py` | Builds the station-centred relief maps in `img/maps/` |
-| `maintenance/RossIsland_DryValleys_250kDRG_HighRes.gif` | Source map for `build_station_maps.py` (USGS, 3.7 MB) |
+| `maintenance/build_station_maps.py` | Builds the station-centred satellite maps in `img/maps/` |
+| `maintenance/MDV_region_highres.tif` | Source imagery for the maps (10 m GeoTIFF, ~1.5 GB; not in git, see below) |
+| `maintenance/build_photos.py` | Makes the display copies of the station photos |
 | `maintenance/make_qr.py` | Makes the "Learn more" QR code, `img/qr-learn-more.svg` |
 | `maintenance/build_climatology.py` | Builds the historical averages and records in `climatology/` |
 | `climatology_sources.json` (repository root) | EDI package for each station, read by `build_climatology.py` |
@@ -46,18 +47,9 @@ originals can be moved out of the repo to keep it small.
 
 ## Station maps
 
-By default the map panel shows satellite map tiles (`satelliteTiles` in config.js),
-centred on each station's `lat` / `lon` and about `spanKm` across, with the zoom
-chosen to suit the screen. This uses Google's tile address directly, which isn't an
-official Google API and could be throttled or blocked; if the tile under a station
-fails to load, that station falls back to its USGS map below. Set
-`satelliteTiles: null` to use the USGS maps everywhere.
-
-### USGS relief maps (fallback)
-
 Each station's `map` is an image plus where the station is on it:
 
-    map: { src: 'img/maps/boym-relief.jpg', size: [680, 354], dot: [49.9, 50.1], credit: 'Map: USGS 1:250,000 shaded relief' }
+    map: { src: 'img/maps/boym.jpg', size: [2560, 1333], dot: [50.0, 50.0], credit: 'Contains modified Copernicus Sentinel data 2026' }
 
 - `size` is the image's width and height in pixels.
 - `dot` is the station's position, as a percentage of the width and height.
@@ -66,20 +58,26 @@ Each station's `map` is an image plus where the station is on it:
 The page shows as much of the image as fits the panel, keeping the dot and its label
 in view, so images a little wider and taller than the panel (about 2 : 1) work best.
 
-Every station uses a crop of the USGS 1:250,000 shaded-relief map centred on the
-station (about 24 × 12 km). The scan is about 70 m per pixel, so on a very large
-screen (e.g. a 3 × 3 video wall) the maps are soft but still read well; a sharper
-source would be needed to improve on that. To use a different image for a station,
-save it in `img/maps/` and change that station's `map` entry, with the image's own
-credit.
+The maps are 32 km wide crops, centred on each station, of a 10 m per pixel
+true-colour Sentinel-2 satellite GeoTIFF of the Dry Valleys (`maintenance/MDV_region_highres.tif`,
+WGS 84 / UTM zone 58S), saved 2560 px wide (about 0.5 MB each), which stays sharp on a
+3 × 3 video wall. The GeoTIFF is ~1.5 GB, so `.gitignore` keeps it (and any other
+`maintenance/*.tif`) out of git: keep a copy somewhere safe and put it back in this
+folder before rebuilding. The original Current Conditions dashboard builds its
+locator map from the same file.
 
-To rebuild the relief maps, e.g. after adding a station to the list at the top of
-the script (needs numpy and Pillow):
+To rebuild the maps, e.g. after adding a station to the list at the top of the script
+(needs `pip install numpy pillow tifffile pyproj`):
 
     python maintenance/build_station_maps.py           # all stations
     python maintenance/build_station_maps.py mism      # just one
+    python maintenance/build_station_maps.py --tif /elsewhere/MDV_region_highres.tif
 
-It prints each station's `map:` entry for config.js.
+It prints each station's `map:` entry for config.js. To change how much ground each
+map covers, change `SPAN_KM` at the top of the script.
+
+`satelliteTiles` in config.js can instead load live web map tiles for the panel
+(see the comment there); it is off.
 
 ## "Learn more" QR code
 

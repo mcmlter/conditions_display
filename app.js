@@ -660,10 +660,10 @@ function fitTileMap(svg, bw, bh) {
       }
     }
     layer.innerHTML = html;
-    // The tile under the station failed: use the USGS map for this station.
+    // The tile under the station failed: use its map image instead.
     layer.querySelector('[data-home]')?.addEventListener('error', () => {
       tilesFailed.add(site.code);
-      console.warn(`Satellite tiles for ${site.code} didn't load; using the USGS map.`);
+      console.warn(`Satellite tiles for ${site.code} didn't load; using its map image.`);
       if (panel.isConnected) { panel.outerHTML = mapPanelHtml(site); fitSatMaps(); }
     }, { once: true });
   }

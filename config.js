@@ -38,17 +38,12 @@ const CONFIG = {
   // Set to null to turn them off.
   windArrows: { spacingRem: 2.2, minScreenPx: 701 },
 
-  // Satellite imagery for the map panel: map tiles (Web Mercator x / y / z),
-  // centred on each station's lat / lon and about `spanKm` across. The zoom is
-  // picked so the tiles are about as sharp as the screen (up to maxZoom). If
-  // the tile under a station fails to load, that station uses its USGS map.
-  // Set to null to use the USGS relief maps everywhere.
-  satelliteTiles: {
-    url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-    spanKm: 32,
-    maxZoom: 15,
-    credit: 'Imagery © Google',
-  },
+  // Optional live satellite map tiles (Web Mercator x / y / z) for the map
+  // panel instead of the images in SITES, centred on each station's lat / lon
+  // and about `spanKm` across, e.g.
+  //   { url: 'https://…/{z}/{x}/{y}', spanKm: 32, maxZoom: 15, credit: '…' }
+  // If the tile under a station fails to load, that station uses its image.
+  satelliteTiles: null,
 
   // Bottom row: credit line, "Learn more" QR code and partner logos.
   footer: {
@@ -100,42 +95,40 @@ const VARIABLES = {
 //         right-hand side); portrait photos are shown whole over a blurred copy.
 // map   = the little map: image, its pixel size, the station's position on it
 //         (% of width / height, red dot) and the credit shown in its corner.
-//         All stations use a station-centred crop of the USGS 1:250,000
-//         shaded-relief map (maintenance/build_station_maps.py). With
-//         satelliteTiles (above) set, the panel shows satellite imagery centred
-//         on lat / lon instead, and falls back to this map if it fails.
+//         Each is a 32 km, station-centred crop of the 10 m satellite GeoTIFF
+//         (maintenance/build_station_maps.py).
 const SITES = [
   { code: 'boym', type: 'met', name: 'Lake Bonney', prep: 'at', photo: 'img/station-photos/boym.jpg',
     lat: -77.71473, lon: 162.4647,
-    map: { src: 'img/maps/boym-relief.jpg', size: [680, 354], dot: [49.9, 50.1], credit: 'Map: USGS 1:250,000 shaded relief' } },
+    map: { src: 'img/maps/boym.jpg', size: [2560, 1333], dot: [50.0, 50.0], credit: 'Contains modified Copernicus Sentinel data 2026' } },
   { code: 'tarm', type: 'met', name: 'Taylor Glacier', prep: 'on', photo: 'img/station-photos/tarm.jpg',
     lat: -77.7402, lon: 162.1284,
-    map: { src: 'img/maps/tarm-relief.jpg', size: [680, 354], dot: [50.1, 50.2], credit: 'Map: USGS 1:250,000 shaded relief' } },
+    map: { src: 'img/maps/tarm.jpg', size: [2560, 1333], dot: [50.0, 50.0], credit: 'Contains modified Copernicus Sentinel data 2026' } },
   { code: 'ho2m', type: 'met', name: 'Lake Hoare', prep: 'at', photo: 'img/station-photos/ho2m.jpg', photoFocus: '50% 10%',
     lat: -77.62399, lon: 162.8995,
-    map: { src: 'img/maps/ho2m-relief.jpg', size: [680, 354], dot: [50.1, 49.9], credit: 'Map: USGS 1:250,000 shaded relief' } },
+    map: { src: 'img/maps/ho2m.jpg', size: [2560, 1333], dot: [50.0, 50.0], credit: 'Contains modified Copernicus Sentinel data 2026' } },
   { code: 'caam', type: 'met', name: 'Canada Glacier', prep: 'on', photo: 'img/station-photos/caam.jpg', photoFocus: '50% 90%',
     lat: -77.61315, lon: 162.9647,
-    map: { src: 'img/maps/caam-relief.jpg', size: [680, 354], dot: [50.0, 50.1], credit: 'Map: USGS 1:250,000 shaded relief' } },
+    map: { src: 'img/maps/caam.jpg', size: [2560, 1333], dot: [50.0, 50.0], credit: 'Contains modified Copernicus Sentinel data 2026' } },
   { code: 'frlm', type: 'met', name: 'Lake Fryxell', prep: 'at', photo: 'img/station-photos/frlm.jpg',
     lat: -77.6113, lon: 163.1701,
-    map: { src: 'img/maps/frlm-relief.jpg', size: [680, 354], dot: [50.0, 49.8], credit: 'Map: USGS 1:250,000 shaded relief' } },
+    map: { src: 'img/maps/frlm.jpg', size: [2560, 1333], dot: [50.0, 50.0], credit: 'Contains modified Copernicus Sentinel data 2026' } },
   { code: 'hodm', type: 'met', name: 'Howard Glacier', prep: 'on', photo: null,
     lat: -77.67108, lon: 163.0784,
-    map: { src: 'img/maps/hodm-relief.jpg', size: [680, 354], dot: [50.1, 50.2], credit: 'Map: USGS 1:250,000 shaded relief' } },
+    map: { src: 'img/maps/hodm.jpg', size: [2560, 1333], dot: [50.0, 50.0], credit: 'Contains modified Copernicus Sentinel data 2026' } },
   { code: 'cohm', type: 'met', name: 'Commonwealth Glacier', prep: 'on', photo: null,
     lat: -77.56453, lon: 163.2826,
-    map: { src: 'img/maps/cohm-relief.jpg', size: [680, 354], dot: [49.9, 50.1], credit: 'Map: USGS 1:250,000 shaded relief' } },
+    map: { src: 'img/maps/cohm.jpg', size: [2560, 1333], dot: [50.0, 50.0], credit: 'Contains modified Copernicus Sentinel data 2026' } },
   { code: 'exem', type: 'met', name: "Explorer's Cove", prep: 'at', photo: null,
     lat: -77.5887, lon: 163.4175,
-    map: { src: 'img/maps/exem-relief.jpg', size: [680, 354], dot: [50.0, 50.2], credit: 'Map: USGS 1:250,000 shaded relief' } },
+    map: { src: 'img/maps/exem.jpg', size: [2560, 1333], dot: [50.0, 50.0], credit: 'Contains modified Copernicus Sentinel data 2026' } },
   { code: 'brhm', type: 'met', name: 'Lake Brownworth', prep: 'at', photo: null,
     lat: -77.4335, lon: 162.7036,
-    map: { src: 'img/maps/brhm-relief.jpg', size: [680, 354], dot: [50.0, 50.1], credit: 'Map: USGS 1:250,000 shaded relief' } },
+    map: { src: 'img/maps/brhm.jpg', size: [2560, 1333], dot: [50.0, 50.0], credit: 'Contains modified Copernicus Sentinel data 2026' } },
   { code: 'vaam', type: 'met', name: 'Lake Vanda', prep: 'at', photo: 'img/station-photos/vaam.jpg', photoFocus: '50% 80%',
     lat: -77.52567, lon: 161.6913,
-    map: { src: 'img/maps/vaam-relief.jpg', size: [680, 354], dot: [50.1, 49.8], credit: 'Map: USGS 1:250,000 shaded relief' } },
+    map: { src: 'img/maps/vaam.jpg', size: [2560, 1333], dot: [50.0, 50.0], credit: 'Contains modified Copernicus Sentinel data 2026' } },
   { code: 'viam', type: 'met', name: 'Lake Vida', prep: 'at', photo: null,
     lat: -77.37735, lon: 161.7991,
-    map: { src: 'img/maps/viam-relief.jpg', size: [680, 354], dot: [50.0, 49.8], credit: 'Map: USGS 1:250,000 shaded relief' } },
+    map: { src: 'img/maps/viam.jpg', size: [2560, 1333], dot: [50.0, 50.0], credit: 'Contains modified Copernicus Sentinel data 2026' } },
 ];
