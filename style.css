@@ -1,0 +1,782 @@
+/* =============================================================
+   MCM Conditions Display — style.css
+   Display version of the Current Conditions dashboard, laid out like the
+   "streamed data projections" slides: white cards on a black page, title
+   across the top, the four measurement tiles on the left, the station
+   photo and a satellite map on the right, credits and logos below.
+
+   Same tokens, tiles and sparklines as the dashboard. Every size is in rem,
+   and the root font size follows the viewport, so the one layout fits a
+   lobby TV or projector (16:9), a laptop, and stacks on phones.
+   ============================================================= */
+
+/* --- Tokens -------------------------------------------------- */
+:root {
+  --bg: #121212;                 /* page background between the cards (as in the slides) */
+  --on-bg: #f2f2f0;              /* text on that background */
+  --on-bg-muted: #a8a59d;
+  --surface: #ffffff;
+  --border: #e0ddd8;
+  --border-light: #ece9e4;
+  --text-primary: #1a1917;
+  --text-secondary: #5a574f;
+  --text-muted: #8a877f;
+  --accent: #2563eb;
+  --accent-light: #eff6ff;
+  --warm: #c92a2a;               /* feels-like above 0 °C */
+  --warm-light: #fff5f5;
+  --good: #2f9e44;
+  --line-default: #6b9bd1;       /* sparklines (soft blue) */
+  --line-solar: #d4a43c;         /* solar radiation sparkline (soft gold) */
+  --series-a: #2563eb;           /* single value / first of a group (accent) */
+  --series-b: #0c8599;           /* second of a group (viewer palette teal) */
+  --series-c: #e8590c;
+  --radius: 0.43rem;
+  --radius-lg: 0.72rem;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
+  --gap: 0.86rem;
+  --axis-w: 2.5rem;              /* sparkline y-axis label gutter */
+  --transition-ms: 550ms;
+}
+
+/* Fluid root size: 14px on phones/laptops → ~19px at 1080p → ~38px at 4K →
+   ~57px on a 3 × 3 wall of 1080p screens (5760 × 3240). From 1080p up it grows
+   in step with the screen (1.77vmin), so a TV, a 4K screen and a video wall all
+   show the same picture, just bigger. */
+html {
+  font-size: clamp(14px, max(calc(0.6vmin + 0.45vw + 4px), 1.77vmin), 120px);
+}
+
+/* --- Reset --------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  font-size: 1rem;
+  color: var(--text-primary);
+  background: var(--bg);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- Page layout --------------------------------------------- */
+/* Station card (title + tiles + photo + map) / progress bar / footer.
+   On a landscape screen the whole thing is exactly one screen tall. */
+body { background: var(--bg); color: var(--on-bg); }
+
+#app {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 0.75rem;
+  padding: 1rem 1.4rem 1.1rem;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+@media (min-width: 900px) and (orientation: landscape) {
+  body:not(.embedded) #app { height: 100vh; height: 100dvh; }
+}
+
+body:not(.embedded) .spark-wrap { max-height: none; }   /* sparklines absorb spare height; minSpan keeps them honest */
+
+#stage {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+}
+
+.site-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.8rem;
+}
+
+/* --- Title row ----------------------------------------------- */
+.disp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.5rem;
+}
+
+.disp-title {
+  font-size: 2.35rem;
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  color: var(--on-bg);
+}
+
+.disp-title .disp-site { font-weight: 700; }
+
+.disp-obs {
+  text-align: right;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: var(--on-bg-muted);
+}
+
+.disp-obs strong {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--on-bg);
+}
+
+.disp-obs .tz { color: var(--on-bg-muted); }
+
+/* --- Main area: tiles card | photo over map ------------------ */
+.disp-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.54fr) minmax(0, 1fr);
+  gap: 0.9rem;
+  min-height: 0;
+}
+
+.disp-panel {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.tiles-panel { display: flex; padding: 0.8rem; }
+
+.tiles-panel .tiles {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.disp-side {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.9rem;
+  min-height: 0;
+}
+
+/* Station photo (or a placeholder until there is one) */
+.photo-panel img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Portrait photos (.is-whole, set by fitPhotos in app.js): the whole photo,
+   centred over a blurred, darkened copy that fills the rest of the panel. */
+.photo-panel .photo-backdrop { display: none; }
+.photo-panel.is-whole .photo-backdrop {
+  display: block;
+  filter: blur(1.2rem) brightness(0.55) saturate(1.1);
+  transform: scale(1.15);           /* hide the blur's soft edges */
+}
+.photo-panel.is-whole .photo-main { object-fit: contain; }
+
+.photo-missing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 1rem;
+  background: #2a2a28;
+  color: var(--on-bg-muted);
+  font-size: 0.86rem;
+  text-align: center;
+}
+
+.photo-missing svg { width: 2.6rem; height: 2.6rem; opacity: 0.55; }
+.photo-missing strong { color: var(--on-bg); font-size: 1.05rem; font-weight: 600; }
+
+/* Satellite map: the image, the station's red dot and its name in italics,
+   all in one SVG so they stay together whatever shape the panel is. */
+.map-panel { background: #2a2a28; }
+
+.map-panel svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Station marker: accent-blue dot with a white ring and a soft dark halo,
+   so it stands out on rock, ice and water alike. */
+.sat-halo { fill: rgba(0, 0, 0, 0.32); }
+.sat-dot  { fill: var(--accent); stroke: #fff; }
+
+/* Station name: white text on a dark tag, in the dashboard's font. */
+.sat-tag-bg { fill: rgba(18, 18, 18, 0.82); }
+.sat-label {
+  font-family: var(--font);
+  font-weight: 600;
+  fill: #fff;
+}
+
+.map-credit {
+  position: absolute;
+  right: 0.45rem;
+  bottom: 0.25rem;
+  font-size: 0.62rem;
+  color: #fff;
+  opacity: 0.85;
+  text-shadow: 0 0 3px #000, 0 0 2px #000;
+}
+
+/* --- Progress to the next station ---------------------------- */
+#progress {
+  height: 0.2rem;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+#progress-bar {
+  height: 100%;
+  width: 0;
+  background: var(--line-default);
+  border-radius: 2px;
+}
+
+body.pinned #progress { visibility: hidden; }   /* ?site=… : one station, no countdown */
+
+/* --- Footer: credit, QR code, logos -------------------------- */
+#disp-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.8rem 2rem;
+}
+
+.disp-credit { display: flex; flex-direction: column; gap: 0.6rem; max-width: 46rem; }
+
+.disp-credit p {
+  font-size: 1.15rem;
+  line-height: 1.35;
+  color: var(--on-bg);
+}
+
+.learn-more {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: var(--on-bg);
+  font-size: 1.15rem;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.learn-more img {
+  width: 5.2rem;
+  height: 5.2rem;
+  padding: 0.25rem;
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.disp-logos {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.8rem 1.8rem;
+}
+
+.disp-logos img { height: 5rem; width: auto; display: block; }
+.disp-logos img.logo-wide { height: 4rem; }
+
+/* Landscape screens: credit on the left, logos on one row at the right,
+   so the footer never takes a second row from the tiles. */
+@media (min-width: 900px) and (orientation: landscape) {
+  #disp-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .disp-logos { flex-wrap: nowrap; }
+}
+
+
+
+/* --- Station transition ------------------------------------ */
+
+.site-card {
+  width: 100%;
+  min-height: 0;
+  transition:
+    opacity var(--transition-ms) ease,
+    transform var(--transition-ms) cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.site-card.is-leaving  { opacity: 0; transform: translateX(-3%); }
+.site-card.is-entering { opacity: 0; transform: translateX(3%); transition: none; }
+
+/* Tiles cascade in after the card lands */
+.site-card.is-shown .tile {
+  animation: tile-in 480ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.site-card.is-shown .tile:nth-child(2) { animation-delay: 60ms; }
+.site-card.is-shown .tile:nth-child(3) { animation-delay: 120ms; }
+.site-card.is-shown .tile:nth-child(4) { animation-delay: 180ms; }
+.site-card.is-shown .tile:nth-child(5) { animation-delay: 240ms; }
+.site-card.is-shown .tile:nth-child(6) { animation-delay: 300ms; }
+
+@keyframes tile-in {
+  from { opacity: 0; transform: translateY(0.7rem); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-card,
+  .site-card.is-leaving,
+  .site-card.is-entering { transform: none; }
+  .site-card.is-shown .tile { animation: none; }
+}
+
+/* --- Feels like, pressure trend ----------------------------- */
+/* "Feels like" pill under air temperature, in the dashboard's light blue */
+.feels-like {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3em;
+  padding: 0.15rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 100px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: 0.86rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.feels-like strong { font-weight: 600; color: inherit; }
+/* Feels-like bands (thresholds in config.js): solid blue when very cold, red above 0 °C. */
+.feels-like.is-very-cold {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.feels-like.is-warm {
+  background: var(--warm-light);
+  border-color: color-mix(in srgb, var(--warm) 30%, transparent);
+  color: var(--warm);
+}
+
+/* Pressure tendency reuses the wind-direction block, a size smaller
+   (it sits in a single-width tile). */
+.side-stat .wind-cardinal { font-size: 1.35rem; }
+.side-stat .wind-arrow { width: 1.9rem; height: 1.9rem; }
+.side-stat .wind-deg { white-space: nowrap; }
+/* In the 2 × 2 display tiles the pressure trend sits on its own line under
+   the value (there's no room beside it), so no divider. */
+.tiles-panel .side-stat { flex-basis: 100%; margin: 0.35rem 0 0; padding-left: 0; border-left: 0; }
+
+
+/* --- Tiles --------------------------------------------------- */
+/* Default (tablet → TV): 3 columns, 3 tiles on top and wind, pressure and
+   the location map below. (A `wide` tile would span two columns.) */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-flow: row dense;
+  gap: var(--gap);
+}
+
+.tile.wide { grid-column: span 2; }
+
+/* Wide grouped tile: put the readings side by side. */
+.tile.wide .pair { flex-direction: row; gap: 1rem 2.5rem; flex-wrap: wrap; }
+.tile.wide .pair-row { flex: 0 1 auto; grid-template-columns: auto auto; justify-content: start; column-gap: 1.2rem; }
+
+.tile {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.15rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.tile-label {
+  font-size: 0.79rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  line-height: 1.3;
+  min-height: 2.6em;            /* two lines, so numbers line up across tiles */
+}
+
+.tile-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.4rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+
+.tile-number {
+  font-size: 2.9rem;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.tile-unit {
+  font-size: 0.86rem;
+  font-family: var(--mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile-sub {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.43rem;
+  min-height: 1.3rem;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+
+/* Wind direction, beside the speed */
+.wind-dir {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 1.2rem;
+  padding-left: 1.2rem;
+  border-left: 1px solid var(--border-light);
+  align-self: center;
+}
+
+.wind-arrow {
+  width: 2.4rem;
+  height: 2.4rem;
+  flex-shrink: 0;
+  color: var(--text-primary);
+}
+
+.wind-dir-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.wind-cardinal {
+  font-size: 1.9rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.wind-deg {
+  font-size: 0.79rem;
+  font-family: var(--mono);
+  color: var(--text-muted);
+}
+
+.tile.no-value .tile-number,
+.pair-row.no-value .tile-number { color: var(--text-muted); }
+
+/* Grouped tile (e.g. shallow + deep O₂) */
+.pair { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.pair-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "name value" "range range";
+  align-items: baseline;
+  column-gap: 0.5rem;
+}
+
+.pair-name {
+  grid-area: name;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+
+.pair-row .tile-value { grid-area: value; justify-content: flex-end; }
+.pair-row .tile-number { font-size: 1.9rem; }
+
+.pair-range {
+  grid-area: range;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.swatch {
+  width: 1.1rem;
+  height: 0;
+  border-top: max(2px, 0.14rem) solid var(--series-a);
+  flex-shrink: 0;
+}
+.swatch.s-b { border-top-style: dashed; border-top-color: var(--series-b); }
+.swatch.s-c { border-top-style: dotted; border-top-color: var(--series-c); }
+
+/* --- Wind-direction arrows on the wind trend line ----------- */
+.wind-arrows { position: absolute; inset: 0; pointer-events: none; }
+.wind-arrow-mini {
+  position: absolute;
+  width: 0.95rem;
+  height: 0.95rem;
+  margin: -0.475rem 0 0 -0.475rem;
+  color: #000;
+  pointer-events: auto;          /* hover shows the direction */
+}
+.wind-arrows .wind-arrow-mini .wind-arrow { display: block; width: 100%; height: 100%; color: inherit; }
+@media (max-width: 700px) {
+  .wind-arrows, .wind-key { display: none; }
+}
+
+/* --- Sparkline colours --------------------------------------
+   Each tile sets --line for its sparkline, fill and end dot: soft blue,
+   with soft gold for solar radiation. */
+.tile    { --line: var(--line-default); }
+.v-solar { --line: var(--line-solar); }
+
+/* --- Sparkline ----------------------------------------------- */
+.spark-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 2.6rem;
+  max-height: 8rem;             /* when embedded (sized to content) */
+  margin-top: 0.43rem;
+}
+
+/* Y-axis: tick labels in a left gutter, plot area to the right of it. */
+.spark-axis {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(var(--axis-w) - 0.35rem);
+}
+
+.spark-tick {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  line-height: 1;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.spark-plot {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  left: var(--axis-w);
+}
+
+.spark-grid {
+  stroke: var(--border-light);
+  stroke-width: 1px;
+}
+
+.spark {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.spark-line {
+  fill: none;
+  stroke: var(--line, var(--series-a));
+  stroke-width: max(2px, 0.14rem);
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.spark-line.s-b { stroke: var(--series-b); stroke-dasharray: 5 3; }
+.spark-line.s-c { stroke: var(--series-c); stroke-dasharray: 1.5 3; }
+
+.spark-area { fill: color-mix(in srgb, var(--line, var(--series-a)) 9%, var(--surface)); }
+
+.spark-dot {
+  position: absolute;
+  width: 0.57rem;
+  height: 0.57rem;
+  margin: -0.285rem 0 0 -0.285rem;
+  border-radius: 50%;
+  background: var(--line, var(--series-a));
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.spark-dot.s-b { background: var(--series-b); }
+.spark-dot.s-c { background: var(--series-c); }
+
+.spark-caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 0.8rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  min-height: 1.5em;            /* keeps tiles level when the range is hidden */
+}
+
+/* Historical average: dashed grey line behind the data, with a key */
+.spark-ref {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: max(1.5px, 0.1rem);
+  stroke-dasharray: 4 3;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+
+.avg-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.swatch.s-avg { border-top: max(2px, 0.14rem) dashed var(--text-muted); }
+
+/* Top of a tile: label / value / sub on the left, extras (records) on the right.
+   Wraps the extras underneath when the tile is too narrow for both. */
+.tile-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.tile-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Record high / low for this date + hour (air temperature): upper right */
+.tile-records {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  align-items: baseline;
+  justify-content: end;
+  gap: 0.05rem 0.4rem;
+  font-size: 0.79rem;
+  color: var(--text-secondary);
+  text-align: right;
+  flex: 0 0 auto;
+}
+
+.tile-records .rec-label {
+  grid-column: 1 / -1;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.rec-year { color: var(--text-muted); font-size: 0.9em; }
+
+/* Min / max values in the range captions */
+.range-val {
+  font-family: var(--mono);
+  font-size: 1.08em;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Messages ----------------------------------------------- */
+.cc-message {
+  margin: auto;
+  padding: 4rem 1rem;
+  text-align: center;
+  font-size: 1rem;
+  color: var(--on-bg-muted);         /* on the dark page */
+  font-style: italic;
+}
+
+/* =============================================================
+   Layout breakpoints
+   ============================================================= */
+
+/* TVs / projectors: use the whole display, bigger headline numbers. */
+@media (min-width: 1600px) {
+  #app { padding: 1.8vh 2vw 1.6vh; }
+}
+@media (min-width: 1600px) and (orientation: landscape) {
+  body:not(.embedded) .tile-number { font-size: 4.2rem; }
+  body:not(.embedded) .wind-cardinal { font-size: 2.6rem; }
+  body:not(.embedded) .wind-arrow { width: 3.2rem; height: 3.2rem; }
+  body:not(.embedded) .side-stat .wind-cardinal { font-size: 1.9rem; }
+  body:not(.embedded) .side-stat .wind-arrow { width: 2.4rem; height: 2.4rem; }
+}
+
+/* Narrow or portrait screens: stack the panels and let the page scroll.
+   Photo and map keep a 16:9 shape side by side, then stacked on phones. */
+@media (max-width: 899px), (orientation: portrait) {
+  .disp-main { grid-template-columns: minmax(0, 1fr); }
+  .disp-side { grid-template-rows: none; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .disp-side .disp-panel { aspect-ratio: 16 / 9; }
+  .tiles-panel .tiles { grid-template-rows: none; }
+  .tiles-panel .tile { min-height: 15rem; }
+  .disp-obs { text-align: left; }
+}
+
+/* Phones */
+@media (max-width: 700px) {
+  #app { padding: 0.7rem 0.85rem 1.2rem; }
+  .disp-title { font-size: 1.6rem; }
+  .site-region { display: none; }    /* just the station name on phones */
+  .disp-side { grid-template-columns: minmax(0, 1fr); }
+  .tiles-panel { padding: 0.5rem; }
+  .tiles-panel .tiles { gap: 0.5rem; }
+  .tiles-panel .tile { min-height: 13rem; }
+  .tile { padding: 0.8rem 0.85rem 0.6rem; }
+  .tile-number { font-size: 2.2rem; }
+  /* Wind direction / pressure trend drop onto their own line under the value */
+  .wind-dir { flex-basis: 100%; margin: 0.3rem 0 0; padding-left: 0; border-left: 0; }
+  .tile-records { justify-content: start; text-align: left; }
+  .tile-label { min-height: 0; }
+  .disp-credit p, .learn-more { font-size: 0.95rem; }
+  .learn-more img { width: 4.2rem; height: 4.2rem; }
+  .disp-logos { justify-content: flex-start; gap: 0.8rem 1.2rem; }
+  .disp-logos img { height: 3.2rem; }
+  .disp-logos img.logo-wide { height: 2.6rem; }
+}
+
+/* Very small phones: single column of tiles. */
+@media (max-width: 360px) {
+  .tiles-panel .tiles { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Phone held sideways: compact. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .site-region { display: none; }
+  .disp-title { font-size: 1.6rem; }
+  .tile-number { font-size: 1.7rem; }
+  .wind-cardinal { font-size: 1.2rem; }
+  .wind-arrow { width: 1.6rem; height: 1.6rem; }
+  .side-stat { flex-basis: 100%; margin: 0.3rem 0 0; padding-left: 0; border-left: 0; }
+  .tile-label { font-size: 0.7rem; }
+}

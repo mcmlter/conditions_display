@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MCM Conditions Display</title>
+  <meta name="description"
+    content="Latest observations from McMurdo Dry Valleys LTER weather stations, rotating through sites with recent data." />
+
+  <!-- Icons: browser tab, iPhone/iPad home screen, Android / installed app -->
+  <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48" />
+  <link rel="icon" type="image/png" href="img/icons/favicon-32.png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <!-- Opened from the home screen: full-screen, with a short name under the icon -->
+  <meta name="apple-mobile-web-app-title" content="MCM Weather" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="theme-color" content="#121212" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div id="app">
+
+    <main id="stage" aria-live="polite">
+      <section id="site-card" class="site-card">
+        <!-- title, measurement tiles, photo and map: populated by app.js -->
+        <p class="cc-message">Loading latest observations…</p>
+      </section>
+    </main>
+
+    <div id="progress" aria-hidden="true"><div id="progress-bar"></div></div>
+
+    <!-- credit, "Learn more" QR code and logos: populated from CONFIG.footer -->
+    <footer id="disp-footer"></footer>
+
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script>
+    // Same iframe auto-height hook as the main viewer (for WordPress embeds).
+    function sendHeight() {
+      window.parent.postMessage({ frameHeight: document.body.scrollHeight }, '*');
+    }
+    window.addEventListener('load', sendHeight);
+    window.addEventListener('resize', sendHeight);
+    new ResizeObserver(sendHeight).observe(document.body);
+  </script>
+</body>
+
+</html>
