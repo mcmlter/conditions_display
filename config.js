@@ -11,6 +11,10 @@ const CONFIG = {
   proxyBase: 'https://mcm-proxy.uwcfl.workers.dev',
 
   rotateSeconds: 60,          // how long each site stays on screen
+
+  // ?site=random shows one of these (picked at random on each page load) and
+  // stays on it, like ?site=<code>.
+  randomSites: ['tarm', 'viam', 'boym'],
   freshHours: 12,             // skip sites whose newest record is older than this
   recheckStaleMinutes: 10,    // after a site is stale/unreachable, wait this long before asking again
   fetchTimeoutSeconds: 10,    // give up on a request (and try the next site) after this

@@ -43,7 +43,8 @@
   <script src="config.js"></script>
   <script src="app.js"></script>
   <script>
-    // Same iframe auto-height hook as the main viewer (for WordPress embeds).
+    // Same iframe auto-height hook as the main viewer (for WordPress embeds,
+    // which load the page with ?embed).
     function sendHeight() {
       window.parent.postMessage({ frameHeight: document.body.scrollHeight }, '*');
     }

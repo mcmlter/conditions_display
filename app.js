@@ -900,8 +900,14 @@ let lookahead = null;                // Promise<site | null | undefined> for the
 // ?site=<code> in the URL pins the display to that station: no rotation, its
 // data just refreshes every rotateSeconds. Without it, rotation starts at a
 // random station.
+// ?site=<code> stays on that station; ?site=random stays on one picked at
+// random (each time the page loads) from CONFIG.randomSites.
 const PINNED = (() => {
-  const code = (new URLSearchParams(location.search).get('site') || '').trim().toLowerCase();
+  let code = (new URLSearchParams(location.search).get('site') || '').trim().toLowerCase();
+  if (code === 'random') {
+    const pool = (CONFIG.randomSites || []).filter(c => SITES.some(s => s.code === c));
+    code = pool.length ? pool[Math.floor(Math.random() * pool.length)] : '';
+  }
   return SITES.find(s => s.code === code) || null;
 })();
 
@@ -1042,8 +1048,10 @@ function demoRows(site) {
 
 // ─── Boot ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  // Fill the screen when opened directly (phone/desktop/TV); size to content inside an iframe.
-  if (window.self !== window.top) document.body.classList.add('embedded');
+  // Always fill the screen, even inside an iframe (cast receiver apps such as
+  // DashCast load the page in one). ?embed sizes it to its content instead,
+  // for embedding in a web page.
+  if (new URLSearchParams(location.search).has('embed')) document.body.classList.add('embedded');
   tickAgo();
   setInterval(tickAgo, 30000);
   window.addEventListener('resize', () => { fitSatMaps(); fitPhotos(); drawWindArrows(); });
