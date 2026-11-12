@@ -452,7 +452,7 @@ function singleTile(v, s, t0, t1, newest, code) {
           ${tendencyArrow(tend.label)}
           <span class="wind-dir-text">
             <span class="wind-cardinal">${tend.label}</span>
-            <span class="wind-deg">${sign}${fmt(tend.delta, v.digits)} ${escapeHtml(v.unit)} in ${v.tendency.hours} h</span>
+            <span class="wind-deg">${sign}${fmt(tend.delta, v.digits)} in ${v.tendency.hours} h</span>
           </span>
         </span>`;
     ariaExtra = `, ${tend.label.toLowerCase()}`;
@@ -701,7 +701,7 @@ function placeMarker(svg, x, y, w, h, dx, dy) {
   dot.setAttribute('stroke-width', (r * 0.42).toFixed(1));
 
   const label = svg.querySelector('.sat-label'), bg = svg.querySelector('.sat-tag-bg');
-  const fs = h * 0.075, padX = fs * 0.55, padY = fs * 0.32, gap = r * 1.4;
+  const fs = h * 0.09, padX = fs * 0.55, padY = fs * 0.32, gap = r * 1.4;
   label.setAttribute('font-size', fs.toFixed(1));
   label.setAttribute('x', '0');
   const tw = label.getBBox().width, tagW = tw + 2 * padX, tagH = fs + 2 * padY;
@@ -777,7 +777,7 @@ function drawWindArrows() {
     }
     if (!html) return;
     plot.insertAdjacentHTML('beforeend', `<div class="wind-arrows" aria-hidden="true">${html}</div>`);
-    if (key) key.textContent = `↗ direction blowing to, avg per ${block < 1 ? `${block * 60} min` : `${block} h`}`;
+    if (key) key.textContent = `↗ blowing to, ${block < 1 ? `${block * 60} min` : `${block} h`} avg`;
   });
 }
 
