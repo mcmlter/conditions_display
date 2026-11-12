@@ -97,11 +97,33 @@ function isFresh(code) {
   return !!(s && s.latest && Date.now() - s.latest <= CONFIG.freshHours * HOUR);
 }
 
-// Checked recently and found stale or unreachable → don't ask again yet.
+// Is it worth asking the proxy for this site again? The loggers upload every
+// `updateHours`, so after a good fetch there's nothing new until about
+// `updateHours` (+ `updateGraceMinutes`) after the newest observation. If the
+// upload is late, ask again every `lateRecheckMinutes`. A site with no recent
+// data (nothing within `freshHours`, or the proxy answered with an error such
+// as no file for it) is rechecked every `noDataRecheckHours`; a request that
+// got no answer (network error / timeout) is retried after `errorRecheckMinutes`.
+function fetchDue(code) {
+  const s = store.get(code);
+  if (!s || !s.checkedAt) return true;                       // never asked
+  const now = Date.now(), MIN = 60000;
+  if (s.error && !/^HTTP /.test(s.error)) return now - s.checkedAt >= CONFIG.errorRecheckMinutes * MIN;
+  if (s.error || !isFresh(code)) return now - s.checkedAt >= CONFIG.noDataRecheckHours * HOUR;
+  const due = +s.latest + CONFIG.updateHours * HOUR + CONFIG.updateGraceMinutes * MIN;
+  if (now < due) return false;                               // next upload not expected yet
+  return s.checkedAt < due || now - s.checkedAt >= CONFIG.lateRecheckMinutes * MIN;
+}
+
+// Fetch a site only if fetchDue() says so; otherwise keep using what we have.
+async function refreshSite(site) {
+  if (fetchDue(site.code)) await fetchSite(site);
+}
+
+// Checked and found stale or unreachable, and not due a recheck yet → skip it.
 function inCooldown(code) {
   const s = store.get(code);
-  return !!(s && s.checkedAt && !isFresh(code) &&
-    Date.now() - s.checkedAt < CONFIG.recheckStaleMinutes * 60000);
+  return !!(s && s.checkedAt && !isFresh(code) && !fetchDue(code));
 }
 
 // ─── Data loading ─────────────────────────────────────────────
@@ -923,8 +945,10 @@ async function findNextSite(fromCode, myGen) {
     if (myGen !== generation) return undefined;              // superseded (e.g. a chip click)
     const site = SITES[(start + k) % SITES.length];          // last candidate is fromCode itself
     if (inCooldown(site.code)) continue;
-    setLoadingMessage(site);
-    await fetchSite(site);
+    if (fetchDue(site.code)) {
+      setLoadingMessage(site);
+      await fetchSite(site);
+    }
     if (myGen !== generation) return undefined;
     renderDots();
     if (isFresh(site.code)) return site;
@@ -946,7 +970,7 @@ function restartProgress() {
 async function present(site, myGen) {
   if (PINNED) return presentPinned(myGen);
   if (site) await showSite(site);
-  else showMessage(`No stations have reported in the last ${CONFIG.freshHours} hours. Checking again shortly…`);
+  else showMessage(`No stations have reported in the last ${CONFIG.freshHours} hours. Checking again later…`);
   if (myGen !== generation) return;
 
   if (site) restartProgress();
@@ -962,11 +986,11 @@ async function present(site, myGen) {
 async function presentPinned(myGen) {
   const info = store.get(PINNED.code);
   if (info && info.latest) await showSite(PINNED);
-  else showMessage(`No data from ${PINNED.name} right now${info && info.error ? ` (${info.error})` : ''}. Checking again shortly…`);
+  else showMessage(`No data from ${PINNED.name} right now${info && info.error ? ` (${info.error})` : ''}. Checking again later…`);
   if (myGen !== generation) return;
   clearTimeout(rotateTimer);
   rotateTimer = setTimeout(async () => {
-    await fetchSite(PINNED);
+    await refreshSite(PINNED);
     if (myGen === generation) presentPinned(myGen);
   }, CONFIG.rotateSeconds * 1000);
 }
@@ -987,13 +1011,13 @@ async function jumpTo(target = null, from = currentCode) {
   clearTimeout(rotateTimer);
   const myGen = ++generation;
   if (PINNED) {
-    await fetchSite(PINNED);
+    await refreshSite(PINNED);
     if (myGen === generation) await presentPinned(myGen);
     return;
   }
   let site;
   if (target) {
-    await fetchSite(target);
+    await refreshSite(target);
     if (myGen !== generation) return;
     renderDots();
     if (isFresh(target.code)) {
